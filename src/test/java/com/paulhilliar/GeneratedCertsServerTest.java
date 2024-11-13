@@ -15,8 +15,9 @@ import nl.altindag.ssl.pem.util.PemUtils;
 import nl.altindag.ssl.util.KeyStoreUtils;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -27,20 +28,20 @@ import javax.net.ssl.X509ExtendedTrustManager;
 @Slf4j
 public class GeneratedCertsServerTest {
 
-    private static final String CLIENT_NAME = "client.com";
-    private static final String SERVER_NAME = "server.com";
+    static final String CLIENT_NAME = "client.com";
+    static final String SERVER_NAME = "server.com";
 
-    private GeneratedCertsServer server;
-    private GeneratedCert serverCa;
-    private GeneratedCert serverCert;
-    private GeneratedCert clientCa;
-    private GeneratedCert trustedClientCert;
-    private GeneratedCert notTrustedCaCert;
-    private GeneratedCert notTrustedClientCert;
+    static GeneratedCertsServer server;
+    static GeneratedCert serverCa;
+    static GeneratedCert serverCert;
+    static GeneratedCert clientCa;
+    static GeneratedCert trustedClientCert;
+    static GeneratedCert notTrustedCaCert;
+    static GeneratedCert notTrustedClientCert;
     HttpClient httpClient;
 
-    @BeforeEach
-    public void setUp() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         serverCa = createCertificate("ServerCA", null, null, CA);
         serverCert = createCertificate(SERVER_NAME, SERVER_NAME, serverCa, false);
 
@@ -58,14 +59,17 @@ public class GeneratedCertsServerTest {
         server.start();
     }
 
-    @AfterEach
-    public void tearDown() throws Exception {
-        if (httpClient != null) {
-            httpClient.stop();
-        }
-
+    @AfterAll
+    public static void stopServer() throws Exception {
         if (server != null) {
             server.stop();
+        }
+    }
+
+    @AfterEach
+    public void stopClient() throws Exception {
+        if (httpClient != null) {
+            httpClient.stop();
         }
     }
 
