@@ -60,51 +60,61 @@ public class GeneratedCertsServerTest {
     }
 
     @AfterAll
-    public static void stopServer() throws Exception {
+    static void stopServer() throws Exception {
         if (server != null) {
             server.stop();
         }
     }
 
     @AfterEach
-    public void stopClient() throws Exception {
+    void stopClient() throws Exception {
         if (httpClient != null) {
             httpClient.stop();
         }
     }
 
     @Test
-    public void trustedCertificate() throws Exception {
+    void trustedCertificate() throws Exception {
         buildMtlsClient(trustedClientCert);
 
+        //valid client cert is presented
         assertThat(httpClient.newRequest("https://localhost:8443?requireMtls=true").send().getStatus()).isEqualTo(200);
+
+        //valid client cert is presented but is never programmatically validated due to requireMtls=false
         assertThat(httpClient.newRequest("https://localhost:8443?requireMtls=false").send().getStatus()).isEqualTo(200);
     }
 
     @Test
-    public void noCertificate() throws Exception {
+    void noCertificate() throws Exception {
         buildMtlsClient(null);
 
+        //lack of client cert means this will be rejected
         assertThat(httpClient.newRequest("https://localhost:8443?requireMtls=true").send().getStatus()).isEqualTo(401);
+
+        //because the client cert is not checked (requireMtls=false) and sslContextFactory.setNeedClientAuth is false
+        //then the lack of client cert is never uncovered
         assertThat(httpClient.newRequest("https://localhost:8443?requireMtls=false").send().getStatus()).isEqualTo(200);
     }
 
     @Test
-    public void untrustedCertificate() throws Exception {
+    void untrustedCertificate() throws Exception {
         buildMtlsClient(notTrustedClientCert);
 
+        //client cert is not trusted - will be rejected
         assertThat(httpClient.newRequest("https://localhost:8443?requireMtls=true").send().getStatus()).isEqualTo(401);
+
+        //client cert is not validated (requireMtls=false) and therefore will be accepted
         assertThat(httpClient.newRequest("https://localhost:8443?requireMtls=false").send().getStatus()).isEqualTo(200);
     }
 
-    private HttpClient buildMtlsClient(GeneratedCert useClientCert) throws Exception {
+    HttpClient buildMtlsClient(GeneratedCert useClientCert) throws Exception {
         httpClient = new HttpClient();
         httpClient.setSslContextFactory(createSslSocketFactory(useClientCert));
         httpClient.start();
         return httpClient;
     }
 
-    private static SslContextFactory.Client createSslSocketFactory(GeneratedCert clientCert) throws Exception {
+    static SslContextFactory.Client createSslSocketFactory(GeneratedCert clientCert) throws Exception {
         SSLFactory.Builder sslBuilder = SSLFactory.builder()
             .withUnsafeHostnameVerifier()   //we can't verify localhost anyway and we don't care about client-side validation here
             .withUnsafeTrustMaterial();     //otherwise we get SSLHandshakeException: No subject alternative DNS name matching localhost found.
