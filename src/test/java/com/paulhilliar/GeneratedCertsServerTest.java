@@ -99,12 +99,12 @@ public class GeneratedCertsServerTest {
 
     private HttpClient buildMtlsClient(GeneratedCert useClientCert) throws Exception {
         httpClient = new HttpClient();
-        httpClient.setSslContextFactory(createSslSocketFactory(useClientCert, serverCa));
+        httpClient.setSslContextFactory(createSslSocketFactory(useClientCert));
         httpClient.start();
         return httpClient;
     }
 
-    private static SslContextFactory.Client createSslSocketFactory(GeneratedCert clientCert, GeneratedCert serverCa) throws Exception {
+    private static SslContextFactory.Client createSslSocketFactory(GeneratedCert clientCert) throws Exception {
         SSLFactory.Builder sslBuilder = SSLFactory.builder()
             .withUnsafeHostnameVerifier()   //we can't verify localhost anyway and we don't care about client-side validation here
             .withUnsafeTrustMaterial();     //otherwise we get SSLHandshakeException: No subject alternative DNS name matching localhost found.
