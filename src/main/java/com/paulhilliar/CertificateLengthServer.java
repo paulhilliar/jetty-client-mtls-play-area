@@ -36,7 +36,7 @@ import javax.net.ssl.X509ExtendedTrustManager;
 
 @Slf4j
 @RequiredArgsConstructor
-public class GeneratedCertsServer {
+public class CertificateLengthServer {
 
     private final CertificateUtils.GeneratedCert serverCert;
     private final X509ExtendedTrustManager frontendTrustManager;
@@ -84,6 +84,18 @@ public class GeneratedCertsServer {
                 new HttpConnectionFactory(https));
         connector.setPort(8443);
 
+        connector.addBean(new SslHandshakeListener() {
+            @Override
+            public void handshakeSucceeded(Event event) throws SSLException {
+                log.info("Server side handshake succeeded");
+            }
+
+            @Override
+            public void handshakeFailed(Event event, Throwable failure) {
+                log.warn("Server side handshake failed", failure);
+            }
+        });
+
         server.setConnectors(new Connector[] {connector});
         server.setHandler(new HelloWorldHandler());
 
@@ -99,7 +111,7 @@ public class GeneratedCertsServer {
         @Override
         public boolean handle(Request request, Response response, Callback callback) throws Exception {
 
-            if (isMtlsRequired(request) && !isClientCertificateValid(request)) {
+            if (!isClientCertificateValid(request, getMaxChainLength(request))) {
                 response.setStatus(401);
                 response.getHeaders().put("WWW-Authenticate", "Mutual");
                 response.write(true, ByteBuffer.wrap("Not Authenticated".getBytes()), callback);
@@ -110,11 +122,13 @@ public class GeneratedCertsServer {
             return true;
         }
 
-        private boolean isClientCertificateValid(Request request) {
+        private boolean isClientCertificateValid(Request request, int maxChainLength) {
             X509Certificate[] clientCerts = null;
             try {
                 val sslSessionData = (EndPoint.SslSessionData) request.getAttribute(EndPoint.SslSessionData.ATTRIBUTE);
                 val sslSession = sslSessionData.sslSession();
+                log.info("SSL session id: {}", sslSessionData.sslSessionId());
+
 
                 //getPeerCertificates gives us the client certificate chain that was negotiated when the connection was established.
                 //It throws SSLPeerUnverifiedException if there was no client cert presented
@@ -129,15 +143,25 @@ public class GeneratedCertsServer {
                 String algorithm = clientCerts[0].getPublicKey().getAlgorithm();    //e.g. "RSA"
                 frontendTrustManager.checkClientTrusted(clientCerts, algorithm);
                 log.info("Client IS trusted :)");
-                return true;
             } catch (CertificateException e) {
                 log.error("Client is not trusted", e);
                 return false;
             }
+
+            int certificateChainLength = clientCerts.length;
+            log.info("Certificate chain length is: {}", certificateChainLength);
+            if (certificateChainLength > maxChainLength) {
+                log.warn("Rejecting request - Client certificate chain length of {} is longer than the permitted length of {}", certificateChainLength, maxChainLength);
+                return false;
+            }
+
+            return true;
         }
 
-        private static Boolean isMtlsRequired(Request request) {
-            return Optional.ofNullable(Request.extractQueryParameters(request).get("requireMtls")).map(Fields.Field::getValue).map(Boolean::valueOf).orElse(true);
+        private static int getMaxChainLength(Request request) {
+            return Optional.ofNullable(Request.extractQueryParameters(request).get("maxChainLength"))
+                .map(Fields.Field::getValue).map(Integer::valueOf)
+                .orElseThrow(() -> new IllegalArgumentException("Didn't find query param maxChainLength"));
         }
     }
 

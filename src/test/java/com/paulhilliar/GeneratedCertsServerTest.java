@@ -116,13 +116,13 @@ public class GeneratedCertsServerTest {
 
     static SslContextFactory.Client createSslSocketFactory(GeneratedCert clientCert) throws Exception {
         SSLFactory.Builder sslBuilder = SSLFactory.builder()
-            .withUnsafeHostnameVerifier()   //we can't verify localhost anyway and we don't care about client-side validation here
+            .withUnsafeHostnameVerifier()   //we can't verify localhost anyway, and we don't care about client-side validation here
             .withUnsafeTrustMaterial();     //otherwise we get SSLHandshakeException: No subject alternative DNS name matching localhost found.
 
         if (clientCert != null) {
-            char[] keyStorePassword = new char[0];
-            KeyStore identityStore = KeyStoreUtils.createIdentityStore(clientCert.getPrivateKey(), keyStorePassword, clientCert.getCertificate());
-            sslBuilder.withIdentityMaterial(identityStore, keyStorePassword);
+            char[] privateKeyPassword = new char[0];
+            KeyStore identityStore = KeyStoreUtils.createIdentityStore(clientCert.getPrivateKey(), privateKeyPassword, clientCert.getCertificate());
+            sslBuilder.withIdentityMaterial(identityStore, privateKeyPassword);
         }
 
         return JettySslUtils.forClient(sslBuilder.build());
